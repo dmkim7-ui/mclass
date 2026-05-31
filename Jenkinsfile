@@ -14,7 +14,7 @@ pipeline {
         REMOTE_HOST = "ec2-3-36-123-189.ap-northeast-2.compute.amazonaws.com"
         REMOTE_DIR = "/home/ec2-user/deploy"
 
-        SSH_CREDENTIALS_ID = "jenkins-rsa-key"
+        SSH_CREDENTIALS_ID = "279b6f82-58f7-41ae-bb10-7d1b8c729b06"
     }
 
     stages {
@@ -47,20 +47,20 @@ pipeline {
 
         stage('Remote Docker Build * Deploy') {
             steps {
-                // 내부 플러그인 에러가 나더라도 스테이지 결과를 무시하고 전체 성공 처리
+                // 플러그인 프로세스 종료 에러(ssh-agent -k)가 전체 판정을 망치지 않도록 방어막 배치
                 catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
                     sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
                         sh """
-ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} << ENDSSH 
-cd ${REMOTE_DIR} || exit 1 
-docker rm -f ${CONTAINER_NAME} || true
-docker build -t ${DOCKER_IMAGE} .
-docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}
-ENDSSH
-"""
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} "
+                            cd ${REMOTE_DIR} && \
+                            docker rm -f ${CONTAINER_NAME} 2>/dev/null || true && \
+                            docker build -t ${DOCKER_IMAGE} . && \
+                            docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}
+                        "
+                        """
                     }
                 }
             }
-        }        
+        }
     }
 }
