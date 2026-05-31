@@ -5,12 +5,59 @@ pipeline {
         maven 'maven 3.9.12' // Jenkins에 등록된 Maven 3.9.12을 사용
     }
 
+    environment {
+        DOCKER_IMAGE = "damo-app"
+        CONTAINER_NAME = "springboot-container"
+        JAR_FILE_NAME = "app.jar"
+        PORT = "8081"
+        REMOTE_USER = "ec2-user"
+        REMOTE_HOST = "ec2-3-36-123-189.ap-northeast-2.compute.amazonaws.com"
+        REMOTE_DIR = "/home/ec2-user/deploy"
+
+        SSH_CREDENTIALS_ID = "279b6f82-58f7-41ae-bb10-7d1b8c729b06"
+    }
+
     stages {
         stage('Git Checkout') {
-            steps { // steps : stage 안에 실행할 실제 코드
-                // Jenkins에 연결된 Git 저장소에서 최신 코드 체크 아웃}
+            steps {
                 checkout scm
             }
         }
+
+        stage('Maven Build') {
+            steps {
+                sh 'mvn clean package -DskipTests'
+            }
+        }
+
+        stage('Prepare Jar') {
+            steps {
+                sh 'cp target/damo-0.0.1-SNAPSHOT.jar ${JAR_FILE_NAME}'
+            }
+        }
+
+        stage('Copy to Remote Server') {
+            steps {
+                sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
+                    sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} \"mkdir -p ${REMOTE_DIR}\""
+                    sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${JAR_FILE_NAME} Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
+                }
+            }
+        }
+
+        stage('Remote Docker Build * Deploy') {
+            steps {
+                sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
+                    sh """
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} << ENDSSH 
+cd ${REMOTE_DIR} || exit 1 
+docker rm -f ${CONTAINER_NAME} || true
+docker build -t ${DOCKER_IMAGE} .
+docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}
+ENDSSH
+"""
+                }
+            }
+        }        
     }
 }
