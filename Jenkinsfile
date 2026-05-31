@@ -14,7 +14,7 @@ pipeline {
         REMOTE_HOST = "ec2-3-36-123-189.ap-northeast-2.compute.amazonaws.com"
         REMOTE_DIR = "/home/ec2-user/deploy"
 
-        SSH_CREDENTIALS_ID = "279b6f82-58f7-41ae-bb10-7d1b8c729b06"
+        SSH_CREDENTIALS_ID = "jenkins-rsa-key"
     }
 
     stages {
