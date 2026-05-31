@@ -6,6 +6,8 @@ WORKDIR /app
 # Maven 또는 Gradle 빌드 후 생성된 JAR 파일을 컨테이너 내부 /app 디렉토리에 app.jar 이름으로 복사
 COPY app.jar app.jar
 
+COPY application-prod.properties /app/application.properties
+
 # 4. 실행 포트 지정
 EXPOSE 8081
 

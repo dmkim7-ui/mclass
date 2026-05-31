@@ -38,16 +38,16 @@ pipeline {
             }
         }
 
-        stage('Inject Spring Config (Secret File)') {
-            steps {
-                withCredentials([file(credentialsId: env.SECRET_FILE_ID, variable: 'SPRING_CONFIG_FILE')]) {
-                    sh """
-                        echo "[INFO] Using secret file: $SPRING_CONFIG_FILE"
-                        cp \$SPRING_CONFIG_FILE ./application-prod.properties
-                    """
-                }
-            }
-        }        
+//        stage('Inject Spring Config (Secret File)') {
+//            steps {
+//                withCredentials([file(credentialsId: env.SECRET_FILE_ID, variable: 'SPRING_CONFIG_FILE')]) {
+//                    sh """
+//                        echo "[INFO] Using secret file: $SPRING_CONFIG_FILE"
+//                        cp \$SPRING_CONFIG_FILE ./application-prod.properties
+//                    """
+//                }
+//            }
+//        }        
 
         stage('Copy to Remote Server') {
             steps {
