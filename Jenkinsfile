@@ -50,23 +50,34 @@ pipeline {
             }
         }
 
-        stage('Remote Docker Build * Deploy') {
+stage('Remote Docker Build * Deploy') {
             steps {
-                // 도커 빌드 후 세션 종료 버그가 빌드를 멈추지 않도록 방어막 배치
                 catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
                     sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
                         sh """
                         ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} "
                             cd ${REMOTE_DIR} && \
+                            
+                            # 1. 기존 컨테이너가 있으면 확실하게 중지 및 삭제 (이름 기준)
                             docker rm -f ${CONTAINER_NAME} 2>/dev/null || true && \
-                            docker build -t ${DOCKER_IMAGE} . && \
-                            docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}
+                            
+                            # 2. 8081 포트를 혹시 선점하고 있는 다른 좀비 컨테이너가 있다면 강제 정리 (선택 안전장치)
+                            # docker ps -q --filter 'publish=${PORT}' | xargs -r docker rm -f && \
+                            
+                            # 3. ⭐️ [핵심] 캐시를 쓰지 않고 새로 전송된 app.jar로 완전히 새로 빌드
+                            docker build --no-cache -t ${DOCKER_IMAGE} . && \
+                            
+                            # 4. 신규 이미지로 컨테이너 가동
+                            docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE} && \
+                            
+                            # 5. 빌드 후 남은 안 쓰는 쓸모없는 대기 상태 이미지(Dangling Image) 정리
+                            docker image prune -f
                         "
                         """
                     }
                 }
             }
-        }     
+        }
 
     }
 }
