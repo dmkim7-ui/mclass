@@ -39,9 +39,7 @@ pipeline {
         stage('Copy to Remote Server') {
             steps {
                 sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
-                    // 원격 서버에 배포 디렉토리 생성 (없으면 새로 만듦)
                     sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} \"mkdir -p ${REMOTE_DIR}\""
-                    // JAR 파일과 Dockerfile을 원격 서버에 복사
                     sh "scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${JAR_FILE_NAME} Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
                 }
             }
@@ -58,8 +56,8 @@ pipeline {
                             docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}
                         ENDSSH
                     """
-                    }
                 }
             }
+        }
     }
 }
