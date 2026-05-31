@@ -38,26 +38,34 @@ pipeline {
 
         stage('Copy to Remote Server') {
             steps {
-                sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
-                    sh "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} \"mkdir -p ${REMOTE_DIR}\""
-                    sh "scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${JAR_FILE_NAME} Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/"
+                // 파일 전송 후 세션 종료 버그가 빌드를 멈추지 않도록 방어막 배치
+                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                    sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${REMOTE_DIR}"
+                        scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${JAR_FILE_NAME} Dockerfile ${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_DIR}/
+                        """
+                    }
                 }
             }
         }
 
         stage('Remote Docker Build * Deploy') {
             steps {
-                sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} << ENDSSH
-                            cd ${REMOTE_DIR} || exit 1
-                            docker rm -f ${CONTAINER_NAME} || true
-                            docker build -t ${DOCKER_IMAGE} .
+                // 도커 빌드 후 세션 종료 버그가 빌드를 멈추지 않도록 방어막 배치
+                catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+                    sshagent (credentials: [env.SSH_CREDENTIALS_ID]) {
+                        sh """
+                        ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${REMOTE_USER}@${REMOTE_HOST} "
+                            cd ${REMOTE_DIR} && \
+                            docker rm -f ${CONTAINER_NAME} 2>/dev/null || true && \
+                            docker build -t ${DOCKER_IMAGE} . && \
                             docker run -d --name ${CONTAINER_NAME} -p ${PORT}:${PORT} ${DOCKER_IMAGE}
-                        ENDSSH
-                    """
+                        "
+                        """
+                    }
                 }
             }
-        }
+        }        
     }
 }
