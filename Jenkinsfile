@@ -32,7 +32,7 @@ pipeline {
 
         stage('Prepare Jar') {
             steps {
-                sh 'cp target/damo-0.0.1-SNAPSHOT.jar ${JAR_FILE_NAME}'
+                sh 'cp target/demo-0.0.1-SNAPSHOT.jar ${JAR_FILE_NAME}'
             }
         }
 
