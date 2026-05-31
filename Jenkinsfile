@@ -15,6 +15,8 @@ pipeline {
         REMOTE_DIR = "/home/ec2-user/deploy"
 
         SSH_CREDENTIALS_ID = "279b6f82-58f7-41ae-bb10-7d1b8c729b06"
+
+        SECRET_FILE_ID = "2541a14b-8caa-4fe4-a638-29cb416b43d1"
     }
 
     stages {
@@ -35,6 +37,17 @@ pipeline {
                 sh 'cp target/demo-0.0.1-SNAPSHOT.jar ${JAR_FILE_NAME}'
             }
         }
+
+        stage('Inject Spring Config (Secret File)') {
+            steps {
+                withCredentials([file(credentialsId: env.SECRET_FILE_ID, variable: 'SPRING_CONFIG_FILE')]) {
+                    sh """
+                        echo "[INFO] Using secret file: $SPRING_CONFIG_FILE"
+                        cp \$SPRING_CONFIG_FILE ./application-prod.properties
+                    """
+                }
+            }
+        }        
 
         stage('Copy to Remote Server') {
             steps {
